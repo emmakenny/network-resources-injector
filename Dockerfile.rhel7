@@ -3,7 +3,7 @@ COPY . /usr/src/network-resources-injector
 WORKDIR /usr/src/network-resources-injector
 RUN make
 
-FROM openshift/origin-base
+FROM openshift/origin-base:v3.7.2
 COPY --from=builder /usr/src/network-resources-injector/bin/webhook /usr/bin/
 COPY --from=builder /usr/src/network-resources-injector/bin/installer /usr/bin/
 

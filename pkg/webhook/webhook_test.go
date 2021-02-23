@@ -20,7 +20,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"bytes"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 
@@ -31,7 +30,6 @@ import (
 )
 
 var _ = Describe("Webhook", func() {
-
 	Describe("Preparing Admission Review Response", func() {
 		Context("Admission Review Request is nil", func() {
 			It("should return error", func() {
@@ -107,7 +105,7 @@ var _ = Describe("Webhook", func() {
 	Describe("Handling requests", func() {
 		Context("Request body is empty", func() {
 			It("mutate - should return an error", func() {
-				req := httptest.NewRequest("POST", fmt.Sprintf("https://fakewebhook/mutate"), nil)
+				req := httptest.NewRequest("POST", "https://fakewebhook/mutate", nil)
 				w := httptest.NewRecorder()
 				MutateHandler(w, req)
 				resp := w.Result()
@@ -117,7 +115,7 @@ var _ = Describe("Webhook", func() {
 
 		Context("Content type is not application/json", func() {
 			It("mutate - should return an error", func() {
-				req := httptest.NewRequest("POST", fmt.Sprintf("https://fakewebhook/mutate"), bytes.NewBufferString("fake-body"))
+				req := httptest.NewRequest("POST", "https://fakewebhook/mutate", bytes.NewBufferString("fake-body"))
 				req.Header.Set("Content-Type", "invalid-type")
 				w := httptest.NewRecorder()
 				MutateHandler(w, req)

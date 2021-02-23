@@ -15,7 +15,7 @@
 FROM golang:1.13-alpine as builder
 COPY . /usr/src/network-resources-injector
 WORKDIR /usr/src/network-resources-injector
-RUN apk add --update --virtual build-dependencies build-base linux-headers bash && \
+RUN apk add --no-cache --virtual build-dependencies build-base=0.5-r2 linux-headers=5.4.5-r1 bash=5.0.17-r0 && \
     make
 
 FROM alpine:3.11

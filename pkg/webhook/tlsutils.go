@@ -68,14 +68,14 @@ func (keyPair *tlsKeypairReloader) GetCertificateFunc() func(*tls.ClientHelloInf
 	}
 }
 
-// NewTlsKeypairReloader reload tlsKeypairReloader struct
-func NewTlsKeypairReloader(certPath, keyPath string) (*tlsKeypairReloader, error) {
+// reload tlsKeypairReloader struct
+func NewTLSKeypairReloader(certPath, keyPath string) (*tlsKeypairReloader, error) {
 	result := &tlsKeypairReloader{
 		certPath: certPath,
 		keyPath:  keyPath,
 	}
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
+	if err != nil  {
 		return nil, err
 	}
 	result.cert = &cert

@@ -9,7 +9,7 @@
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
+// See the License the specific language governing permissions and
 // limitations under the License.
 
 package webhook
@@ -60,7 +60,7 @@ const (
 
 var (
 	clientset              kubernetes.Interface
-	injectHugepageDownApi  bool
+	injectHugepageDownAPI  bool
 	resourceNameKeys       []string
 	honorExistingResources bool
 )
@@ -107,7 +107,7 @@ func readAdmissionReview(req *http.Request, w http.ResponseWriter) (*v1beta1.Adm
 
 	/* read AdmissionReview from the request body */
 	ar, err := deserializeAdmissionReview(body)
-	if err != nil {
+	if err != nil{
 		err := errors.Wrap(err, "error deserializing AdmissionReview")
 		glog.Errorf("%v", err)
 		return nil, http.StatusBadRequest, err
@@ -146,7 +146,7 @@ func deserializePod(ar *v1beta1.AdmissionReview) (corev1.Pod, error) {
 		return pod, err
 	}
 	ownerRef := pod.ObjectMeta.OwnerReferences
-	if ownerRef != nil && len(ownerRef) > 0 {
+	if len(ownerRef) > 0 {
 		namespace, err := getNamespaceFromOwnerReference(pod.ObjectMeta.OwnerReferences[0])
 		if err != nil {
 			return pod, err
@@ -222,10 +222,9 @@ func getNamespaceFromOwnerReference(ownerRef metav1.OwnerReference) (namespace s
 	}
 
 	return
-
 }
 
-func toSafeJsonPatchKey(in string) string {
+func toSafeJSONPatchKey(in string) string {
 	out := strings.Replace(in, "~", "~0", -1)
 	out = strings.Replace(out, "/", "~1", -1)
 	return out
@@ -329,9 +328,9 @@ func getNetworkAttachmentDefinition(namespace, name string) (*cniv1.NetworkAttac
 	}
 
 	networkAttachmentDefinition := cniv1.NetworkAttachmentDefinition{}
-	json.Unmarshal(rawNetworkAttachmentDefinition, &networkAttachmentDefinition)
+	err = json.Unmarshal(rawNetworkAttachmentDefinition, &networkAttachmentDefinition)
 
-	return &networkAttachmentDefinition, nil
+	return &networkAttachmentDefinition, err
 }
 
 func parseNetworkAttachDefinition(net *multus.NetworkSelectionElement, reqs map[string]int64, nsMap map[string]string) (map[string]int64, map[string]string, error) {
@@ -387,13 +386,17 @@ func handleValidationError(w http.ResponseWriter, ar *v1beta1.AdmissionReview, o
 func writeResponse(w http.ResponseWriter, ar *v1beta1.AdmissionReview) {
 	glog.Infof("sending response to the Kubernetes API server")
 	resp, _ := json.Marshal(ar)
-	w.Write(resp)
+	_, err := w.Write(resp)
+
+	if err != nil {
+		glog.Fatalf("write response failed: %v", err)
+	}
 }
 
 func patchEmptyResources(patch []jsonPatchOperation, containerIndex uint, key string) []jsonPatchOperation {
 	patch = append(patch, jsonPatchOperation{
 		Operation: "add",
-		Path:      "/spec/containers/" + fmt.Sprintf("%d", containerIndex) + "/resources/" + toSafeJsonPatchKey(key),
+		Path:      "/spec/containers/" + fmt.Sprintf("%d", containerIndex) + "/resources/" + toSafeJSONPatchKey(key),
 		Value:     corev1.ResourceList{},
 	})
 	return patch
@@ -450,7 +453,6 @@ func addVolDownwardAPI(patch []jsonPatchOperation, hugepageResourceList []hugepa
 }
 
 func addVolumeMount(patch []jsonPatchOperation) []jsonPatchOperation {
-
 	vm := corev1.VolumeMount{
 		Name:      "podnetinfo",
 		ReadOnly:  false,
@@ -474,7 +476,6 @@ func createVolPatch(patch []jsonPatchOperation, hugepageResourceList []hugepageR
 
 func addEnvVar(patch []jsonPatchOperation, containerIndex int, firstElement bool,
 	envName string, envVal string) []jsonPatchOperation {
-
 	env := corev1.EnvVar{
 		Name:  envName,
 		Value: envVal,
@@ -499,7 +500,6 @@ func addEnvVar(patch []jsonPatchOperation, containerIndex int, firstElement bool
 
 func createEnvPatch(patch []jsonPatchOperation, container *corev1.Container,
 	containerIndex int, envName string, envVal string) []jsonPatchOperation {
-
 	// Determine if requested ENV already exists
 	found := false
 	firstElement := false
@@ -526,16 +526,13 @@ func createEnvPatch(patch []jsonPatchOperation, container *corev1.Container,
 
 func createNodeSelectorPatch(patch []jsonPatchOperation, existing map[string]string, desired map[string]string) []jsonPatchOperation {
 	targetMap := make(map[string]string)
-	if existing != nil {
 		for k, v := range existing {
 			targetMap[k] = v
 		}
-	}
-	if desired != nil {
+
 		for k, v := range desired {
 			targetMap[k] = v
 		}
-	}
 	if len(targetMap) == 0 {
 		return patch
 	}
@@ -600,12 +597,12 @@ func updateResourcePatch(patch []jsonPatchOperation, Containers []corev1.Contain
 func appendResource(patch []jsonPatchOperation, resourceName string, reqQuantity, limitQuantity resource.Quantity) []jsonPatchOperation {
 	patch = append(patch, jsonPatchOperation{
 		Operation: "add",
-		Path:      "/spec/containers/0/resources/requests/" + toSafeJsonPatchKey(resourceName),
+		Path:      "/spec/containers/0/resources/requests/" + toSafeJSONPatchKey(resourceName),
 		Value:     reqQuantity,
 	})
 	patch = append(patch, jsonPatchOperation{
 		Operation: "add",
-		Path:      "/spec/containers/0/resources/limits/" + toSafeJsonPatchKey(resourceName),
+		Path:      "/spec/containers/0/resources/limits/" + toSafeJSONPatchKey(resourceName),
 		Value:     limitQuantity,
 	})
 
@@ -715,12 +712,12 @@ func MutateHandler(w http.ResponseWriter, req *http.Request) {
 			// Determine if hugepages are being requested for a given container,
 			// and if so, expose the value to the container via Downward API.
 			var hugepageResourceList []hugepageResourceData
-			glog.Infof("injectHugepageDownApi=%v", injectHugepageDownApi)
-			if injectHugepageDownApi {
+			glog.Infof("injectHugepageDownAPI=%v", injectHugepageDownAPI)
+			if injectHugepageDownAPI {
 				for containerIndex, container := range pod.Spec.Containers {
 					found := false
 					if len(container.Resources.Requests) != 0 {
-						if quantity, exists := container.Resources.Requests["hugepages-1Gi"]; exists && quantity.IsZero() == false {
+						if quantity, exists := container.Resources.Requests["hugepages-1Gi"]; exists && !quantity.IsZero() {
 							hugepageResource := hugepageResourceData{
 								ResourceName:  "requests.hugepages-1Gi",
 								ContainerName: container.Name,
@@ -729,7 +726,7 @@ func MutateHandler(w http.ResponseWriter, req *http.Request) {
 							hugepageResourceList = append(hugepageResourceList, hugepageResource)
 							found = true
 						}
-						if quantity, exists := container.Resources.Requests["hugepages-2Mi"]; exists && quantity.IsZero() == false {
+						if quantity, exists := container.Resources.Requests["hugepages-2Mi"]; exists && !quantity.IsZero() {
 							hugepageResource := hugepageResourceData{
 								ResourceName:  "requests.hugepages-2Mi",
 								ContainerName: container.Name,
@@ -740,7 +737,7 @@ func MutateHandler(w http.ResponseWriter, req *http.Request) {
 						}
 					}
 					if len(container.Resources.Limits) != 0 {
-						if quantity, exists := container.Resources.Limits["hugepages-1Gi"]; exists && quantity.IsZero() == false {
+						if quantity, exists := container.Resources.Limits["hugepages-1Gi"]; exists && !quantity.IsZero() {
 							hugepageResource := hugepageResourceData{
 								ResourceName:  "limits.hugepages-1Gi",
 								ContainerName: container.Name,
@@ -749,7 +746,7 @@ func MutateHandler(w http.ResponseWriter, req *http.Request) {
 							hugepageResourceList = append(hugepageResourceList, hugepageResource)
 							found = true
 						}
-						if quantity, exists := container.Resources.Limits["hugepages-2Mi"]; exists && quantity.IsZero() == false {
+						if quantity, exists := container.Resources.Limits["hugepages-2Mi"]; exists && !quantity.IsZero() {
 							hugepageResource := hugepageResourceData{
 								ResourceName:  "limits.hugepages-2Mi",
 								ContainerName: container.Name,
@@ -791,10 +788,7 @@ func MutateHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
-
 	writeResponse(w, ar)
-	return
-
 }
 
 // SetResourceNameKeys extracts resources from a string and add them to resourceNameKeys array
@@ -817,15 +811,15 @@ func SetupInClusterClient() {
 		glog.Fatal(err)
 	}
 	clientset, err = kubernetes.NewForConfig(config)
-	if err != nil {
+	if err != nil{
 		glog.Fatal(err)
 	}
 }
 
 // SetInjectHugepageDownApi sets a flag to indicate whether or not to inject the
 // hugepage request and limit for the Downward API.
-func SetInjectHugepageDownApi(hugepageFlag bool) {
-	injectHugepageDownApi = hugepageFlag
+func SetInjectHugepageDownAPI(hugepageFlag bool) {
+	injectHugepageDownAPI = hugepageFlag
 }
 
 // SetHonorExistingResources initialize the honorExistingResources flag
