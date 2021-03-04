@@ -450,7 +450,6 @@ func addVolDownwardAPI(patch []jsonPatchOperation, hugepageResourceList []hugepa
 }
 
 func addVolumeMount(patch []jsonPatchOperation) []jsonPatchOperation {
-
 	vm := corev1.VolumeMount{
 		Name:      "podnetinfo",
 		ReadOnly:  false,
@@ -474,7 +473,6 @@ func createVolPatch(patch []jsonPatchOperation, hugepageResourceList []hugepageR
 
 func addEnvVar(patch []jsonPatchOperation, containerIndex int, firstElement bool,
 	envName string, envVal string) []jsonPatchOperation {
-
 	env := corev1.EnvVar{
 		Name:  envName,
 		Value: envVal,
